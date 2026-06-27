@@ -87,6 +87,8 @@ apt update && apt upgrade -y
 
 ## 🐳 3. Instalação do Docker (Motor de Contêineres)
 
+![Docker](images/docker.png)
+
 O Docker é necessário para criar, isolar e executar serviços empacotados em ambientes controlados.
 ```
 curl -fsSL [https://get.docker.com](https://get.docker.com) | sudo sh
