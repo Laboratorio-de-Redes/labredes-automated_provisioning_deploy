@@ -1,4 +1,4 @@
-## ☁️ Instalação e Configuração OpenStack Client (Interface de Linha de Comando da Nuvem)
+# ☁️ Instalação e Configuração OpenStack Client (Interface de Linha de Comando da Nuvem)
 
 ![OpenStack](images/openstack.png)
 
@@ -11,7 +11,7 @@ apt install -y python3-openstackclient
 
 ---
 
-## 🪪 5. Autenticação com a Nuvem OpenStack
+## 🪪 1. Autenticação com a Nuvem OpenStack
 
 Para que o Terraform e o CLI do OpenStack obtenham autorização para provisionar recursos, as credenciais da API foram centralizadas em um arquivo estruturado de configuração.
 
@@ -57,7 +57,7 @@ export OS_CLOUD=labredes
 
 ---
 
-## 🔐 6. Geração e Registro de Chaves Criptográficas (SSH)
+## 🔐 2. Geração e Registro de Chaves Criptográficas (SSH)
 
 Para garantir acesso de gerência às máquinas virtuais criadas sem a necessidade de inserção manual de senhas, um par de chaves de acesso seguro (SSH) foi gerado na VM10 e registrado na nuvem.
 ```
