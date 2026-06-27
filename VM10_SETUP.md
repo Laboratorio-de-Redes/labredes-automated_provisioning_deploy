@@ -29,7 +29,7 @@ ip addr add 10.0.110.8/24 dev ens7
 ```
 Função do comando: Vincula o endereço IPv4 estático 10.0.110.8, com a máscara de sub-rede /24 (255.255.255.0), à interface ens7.
 Esta configuração ocorre na memória volátil e permite o roteamento imediato de pacotes IP, mas não sobrevive a uma reinicialização do sistema.
- 
+
 ### 1.2. Configuração de Persistência (Netplan)
 
 Para tornar a configuração de rede permanente, o utilitário padrão do Ubuntu (Netplan) foi utilizado. O arquivo de configuração de rede foi editado com as diretivas estruturais.
@@ -38,7 +38,6 @@ Abra o arquivo de configuração:
 ```
 nano /etc/netplan/50-cloud-init.yaml
 ```
-
 
 Insira a seguinte estrutura de dados:
 ```
@@ -69,7 +68,7 @@ netplan apply
 ```
 Função do comando: O utilitário lê a estrutura de dados declarada no arquivo YAML, compila as informações e aplica o estado desejado ao renderizador de rede do sistema (neste caso, o systemd-networkd). Isso regrava as tabelas de roteamento e endereçamento de forma definitiva no disco.
 
----
+----
 
 ## ⚙️ 2. Atualização do Sistema Base
 
