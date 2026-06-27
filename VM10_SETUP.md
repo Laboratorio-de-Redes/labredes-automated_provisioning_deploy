@@ -153,7 +153,7 @@ Função do comando: `curl`: faz o download do script oficial de instalação au
 ```
 sudo usermod -aG docker $USER
 ```
-Função do comando: Modifica as propriedades do usuário atual logado no sistema ($USER), anexando-o (-aG) ao grupo de segurança denominado docker. Isso concede ao usuário a permissão de leitura e escrita no soquete do sistema (/var/run/docker.sock), permitindo executar comandos do Docker sem a necessidade de prefixá-los com sudo.
+Função do comando: Modifica as propriedades do usuário atual logado no sistema (`$USER`), anexando-o (`-aG`) ao grupo de segurança denominado docker. Isso concede ao usuário a permissão de leitura e escrita no soquete do sistema (`/var/run/docker.sock`), permitindo executar comandos do Docker sem a necessidade de prefixá-los com sudo.
 
 ---
 
@@ -192,7 +192,7 @@ clouds:
     volume_endpoint_override: "[http://10.10.2.9:8776](http://10.10.2.9:8776)"
 ```
 
-Estrutura do arquivo: Este arquivo em formato YAML armazena as credenciais de autenticação (usuário, senha, IDs de projeto). As chaves terminadas em _endpoint_override instruem explicitamente as ferramentas a enviarem as requisições REST para URLs estáticas (Nova, Glance, Neutron e Cinder), otimizando a comunicação e prevenindo falhas no serviço de descoberta (discovery) do OpenStack.
+Estrutura do arquivo: Este arquivo em formato YAML armazena as credenciais de autenticação (usuário, senha, IDs de projeto). As chaves terminadas em `_endpoint_override` instruem explicitamente as ferramentas a enviarem as requisições REST para URLs estáticas (Nova, Glance, Neutron e Cinder), otimizando a comunicação e prevenindo falhas no serviço de descoberta (discovery) do OpenStack.
 
 Aplique a variável de ambiente:
 ```
@@ -210,7 +210,7 @@ Para garantir acesso de gerência às máquinas virtuais criadas sem a necessida
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/labredes_key -N ""
 ```
 
-Função do comando: Invoca o gerador de chaves criptográficas do sistema.
+Função do comando: `ssh-keygen`: Invoca o gerador de chaves criptográficas do sistema.
 
 `-t rsa`: Seleciona o algoritmo matemático base (RSA).
 
@@ -223,4 +223,4 @@ Função do comando: Invoca o gerador de chaves criptográficas do sistema.
 openstack keypair create --public-key ~/.ssh/labredes_key.pub labredes_key
 ```
 
-Função do comando: O utilitário do OpenStack lê o conteúdo em texto plano do arquivo da chave pública (.pub) e realiza uma requisição POST à API de Computação (Nova) da nuvem. O OpenStack armazena essa chave pública em seu banco de dados sob o identificador lógico labredes_key. Durante o provisionamento das novas instâncias pelo Terraform, a nuvem injeta o conteúdo desta chave pública dentro do sistema operacional das novas VMs, autorizando conexões oriundas exclusivamente de quem possuir a chave privada (A VM10).
+Função do comando: O utilitário do OpenStack lê o conteúdo em texto plano do arquivo da chave pública (`.pub`) e realiza uma requisição POST à API de Computação (Nova) da nuvem. O OpenStack armazena essa chave pública em seu banco de dados sob o identificador lógico `labredes_key`. Durante o provisionamento das novas instâncias pelo Terraform, a nuvem injeta o conteúdo desta chave pública dentro do sistema operacional das novas VMs, autorizando conexões oriundas exclusivamente de quem possuir a chave privada (A VM10).
