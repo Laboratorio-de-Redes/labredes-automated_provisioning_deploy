@@ -90,6 +90,7 @@ Função do comando: `apt update`: Consulta os servidores remotos configurados n
 ### 3.1. Ansible (Gerência de Configuração)
 
 O Ansible é a ferramenta responsável por acessar remotamente as outras VMs da topologia e injetar configurações em seus sistemas operacionais.
+Baixar e instalar o Ansible:
 ```
 apt install -y ansible
 ```
@@ -110,7 +111,7 @@ Função do comando: Instala pacotes utilitários obrigatórios.
 
 `curl`: é um cliente de transferência de dados via protocolos web (HTTP/HTTPS).
 
-Chave GPG da HashiCorp.
+Chave GPG da HashiCorp:
 ```
 curl -fsSL [https://apt.releases.hashicorp.com/gpg](https://apt.releases.hashicorp.com/gpg) | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 ```
@@ -124,7 +125,7 @@ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] [https:/
 ```
 Função do comando: Constrói uma string contendo a URL do repositório oficial do Terraform e a vincula à chave criptográfica salva anteriormente. O comando `tee` grava essa string em um novo arquivo dentro do diretório de fontes do gerenciador de pacotes apt.
 
-Instalação do Terraform.
+Instalação do Terraform:
 ```
 apt update && apt install -y terraform
 ```
