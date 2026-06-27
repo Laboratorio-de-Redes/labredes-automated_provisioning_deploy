@@ -1,6 +1,6 @@
 # 👨‍💻 Plataforma Distribuída de Monitoramento e Segurança de Redes
 
-**🚀Módulo de Orquestração e Deploy Automatizado (VM10)**
+**🚀 Módulo de Orquestração e Deploy Automatizado (VM10)**
 
 ![Ansible](https://img.shields.io/badge/Ansible-Automacao-red)
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-blue)
@@ -16,7 +16,7 @@ A solução aqui documentada corresponde às atribuições do **Deploy Automatiz
 
 ---
 
-##☁️ Visão Geral da Arquitetura
+## ☁️ Visão Geral da Arquitetura
 
 ![Topologia da Plataforma](images/topologia.png)
 
@@ -28,7 +28,7 @@ A máquina **VM10** atua como o controlador de automação. Ela executa instruç
 
 ---
 
-##🚀 Função do Deploy Automatizado (VM10)
+## 🚀 Função do Deploy Automatizado (VM10)
 
 As responsabilidades do módulo de Deploy Automatizado incluem:
 
@@ -39,7 +39,7 @@ As responsabilidades do módulo de Deploy Automatizado incluem:
 
 ---
 
-##📋 Especificações Técnicas da VM10
+## 📋 Especificações Técnicas da VM10
 
 A máquina orquestradora opera com os seguintes parâmetros alocados no OpenStack:
 
@@ -54,7 +54,7 @@ A interface principal (`ens7`) está configurada de forma estática através da 
 
 ---
 
-##📁 Estrutura deste Repositório
+## 📁 Estrutura deste Repositório
 
 Para garantir o isolamento de responsabilidades, o repositório é segmentado em dois diretórios principais:
 
@@ -80,7 +80,7 @@ Para garantir o isolamento de responsabilidades, o repositório é segmentado em
 
 ```
 ---
-##🛠 Tecnologias e Ferramentas
+## 🛠 Tecnologias e Ferramentas
 
 | Tecnologia | Função no Projeto |
 | :--- | :--- |
@@ -91,7 +91,7 @@ Para garantir o isolamento de responsabilidades, o repositório é segmentado em
 
 ---
 
-##⚠️ Trilha de Reprodução do Ambiente (Guia de Leitura)
+## ⚠️ Trilha de Reprodução do Ambiente (Guia de Leitura)
 
 Para compreender o processo de construção e poder reproduzir este laboratório, a documentação foi segmentada em arquivos específicos. Recomenda-se seguir a ordem de leitura abaixo:
 
