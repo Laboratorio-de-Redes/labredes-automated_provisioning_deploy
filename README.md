@@ -93,3 +93,9 @@ Para compreender o processo de construção e poder reproduzir este laboratório
 2. **Configuração da VM Orquestradora (`VM10_SETUP.md`):** Documento detalhando os comandos de terminal para preparação do sistema operacional Ubuntu, configuração estática de rede via Netplan e a instalação dos binários das dependências do projeto (Ansible, Terraform, OpenStack Client e Docker).
 3. **Provisionamento de Infraestrutura (`terraform/README.md`):** Explicação da estrutura declarativa dos arquivos `.tf`. Detalha como as chaves SSH são registradas, como o arquivo de variáveis mapeia as redes e como a criação de uma máquina virtual de teste é executada contra a API do OpenStack.
 4. **Gerenciamento de Configuração (`ansible/README.md`):** Demonstração do uso do inventário dinâmico gerado pelo Terraform e a execução do primeiro teste conjunto: o envio de uma *Playbook* (`configurar_sw1_sw2.yml`) para realizar conexões remotas via SSH e instalar os pacotes do Open vSwitch nas instâncias provisionadas.
+
+
+![Ansible](https://img.shields.io/badge/Ansible-Automacao-red)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-blue)
+![Docker](https://img.shields.io/badge/Docker-Container-blue)
+![Python](https://img.shields.io/badge/Python-3.12-yellow)
