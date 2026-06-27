@@ -36,7 +36,7 @@ Para tornar a configuração de rede permanente, o utilitário padrão do Ubuntu
 
 Abra o arquivo de configuração:
 ```
-nano /etc/netplan/50-cloud-init.yaml
+nano /etc/netplan/99-cloud-init.yaml
 ```
 
 Insira a seguinte estrutura de dados:
