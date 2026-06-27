@@ -1,7 +1,6 @@
 # 🧊 Provisionamento de Infraestrutura (Terraform)
-.
 
-![Terraform](images/terraform.png)
+![Terraform](../images/terraform.png)
 
 Este diretório contém os códigos declarativos escritos em HCL (HashiCorp Configuration Language) utilizados para o provisionamento automatizado da infraestrutura no ambiente OpenStack.
 
