@@ -12,6 +12,8 @@ A solução aqui documentada corresponde às atribuições do **Deploy Automatiz
 
 ## Visão Geral da Arquitetura
 
+![Topologia da Plataforma](images/topologia.png)
+
 A infraestrutura do laboratório é composta por múltiplas máquinas virtuais (VMs) com propósitos específicos, interligadas por switches virtuais (Open vSwitch) que segmentam o tráfego em múltiplas VLANs (Virtual LANs). 
 
 A arquitetura exige que o provisionamento de hardware virtual e a instalação de softwares ocorram de forma padronizada e reproduzível. Para atingir este objetivo, o projeto adota uma abordagem de provisionamento declarativo e configuração imperativa centralizada.
@@ -52,6 +54,9 @@ Para garantir o isolamento de responsabilidades, o repositório é segmentado em
 
 ```text
 .
+├── images/               # Diretório para diagramas e capturas de tela
+│   └── topologia.png     # Imagem da arquitetura geral do projeto
+│
 ├── terraform/
 │   ├── main.tf           # Definição do provider OpenStack e autenticação
 │   ├── variables.tf      # Mapeamento de instâncias, flavors e redes
@@ -65,4 +70,15 @@ Para garantir o isolamento de responsabilidades, o repositório é segmentado em
 │   ├── configurar_*.yml  # Playbooks específicas de configuração por VM
 │   └── README.md         # Documentação específica de Gerência de Configuração
 │
-└── README.md             # Este documento
+└── README.md             # Documentação principal da plataforma
+
+```
+---
+## Tecnologias e Ferramentas
+
+| Tecnologia | Função no Projeto |
+| :--- | :--- |
+| **OpenStack Client** | Interface de linha de comando para obtenção de IDs de rede, imagens e validação de chaves SSH diretamente no ambiente de nuvem. |
+| **Terraform (v1.50+)** | Ferramenta de orquestração de infraestrutura. Lê os arquivos `.tf` e envia requisições estruturadas para o OpenStack instanciar a topologia desejada. |
+| **Ansible** | Ferramenta de automação sem agente (agentless). Utiliza o inventário gerado pelo Terraform para conectar via protocolo SSH nas VMs e aplicar o estado desejado nos sistemas operacionais. |
+| **Netplan / IP Route** | Ferramentas nativas do kernel Linux utilizadas via Ansible para estruturação de rotas de tráfego de produção em direção à máquina VM11. |
