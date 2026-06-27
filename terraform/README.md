@@ -1,6 +1,6 @@
 
-# Provisionamento de Infraestrutura (Terraform)
-
+# 🧊 Provisionamento de Infraestrutura (Terraform)
+![Terraform](images/terraform.png)
 Este diretório contém os códigos declarativos escritos em HCL (HashiCorp Configuration Language) utilizados para o provisionamento automatizado da infraestrutura no ambiente OpenStack.
 
 O objetivo destes arquivos é definir o estado desejado do hardware virtual (máquinas, discos, chaves SSH e interfaces de rede) e gerar dinamicamente o inventário de instâncias que será consumido posteriormente pelo motor do Ansible.
