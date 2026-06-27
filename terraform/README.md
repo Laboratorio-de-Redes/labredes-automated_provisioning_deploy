@@ -59,7 +59,7 @@ terraform {
   required_providers {
     openstack = {
       source  = "terraform-provider-openstack/openstack"
-      version = "~> 1.50.0" # Utilize a versão mais recente
+      version = "~> 1.54"
     }
   }
 }
@@ -87,25 +87,27 @@ terraform init
 nano ~/terraform/labredes/instances.tf
 ```
 ```
-terraform {
-  required_providers {
-    openstack = {
-      source  = "terraform-provider-openstack/openstack"
-      version = "~> 1.54"
-    }
+resource "openstack_compute_instance_v2" "vm_teste" {
+  name            = "vm-teste"
+  image_name      = "f7ca5526-1dc7-4207-adff-3178b7c5e581"
+  flavor_name     = "minor.pico.large"
+  key_pair        = "labredes_key"
+  security_groups = ["clear", "default"]
+
+  network {
+    name = "labredes1"
   }
 }
-
-provider "openstack" {
-  auth_url         = "http://10.10.2.9:5000/v3/"
-  user_name        = "aluno6"
-  password         = "aluno6"
-  tenant_id        = "90f1c80288444ed4bb4e41b5aa2d003f"
-  tenant_name      = "labredes"
-  user_domain_name = "Default"
-  region           = "RegionOne"
-  endpoint_type    = "public"
-}
+```
+Revisar o que será criado e aplicar:
+```
+terraform plan
+terraform apply -auto-approve
+```
+Ao final do processo, uma VM será criada com os recursos declarados no `instances.tf`.
+Para apagar a instância execute:
+```
+terraform destroy -auto-approve
 ```
 
 ---
