@@ -23,11 +23,13 @@ ip link set ens7 up
 Função do comando: Altera o estado administrativo da interface de rede ens7 de "DOWN" para "UP".
 Isso instrui o kernel do Linux a ativar a placa de rede para o envio e recebimento de quadros ethernet na Camada 2.
 
+
 ```
 ip addr add 10.0.110.8/24 dev ens7
 ```
 Função do comando: Vincula o endereço IPv4 estático 10.0.110.8, com a máscara de sub-rede /24 (255.255.255.0), à interface ens7.
 Esta configuração ocorre na memória volátil e permite o roteamento imediato de pacotes IP, mas não sobrevive a uma reinicialização do sistema.
+
 
 ### 1.2. Configuração de Persistência (Netplan)
 
@@ -37,6 +39,7 @@ Abra o arquivo de configuração:
 ```
 nano /etc/netplan/50-cloud-init.yaml
 ```
+
 
 Insira a seguinte estrutura de dados:
 ```
@@ -60,6 +63,7 @@ network:
       mtu: 1450
 ```
 
+
 Aplique as configurações:
 ```
 netplan apply
@@ -75,8 +79,11 @@ Antes de proceder com a instalação de novos softwares, os pacotes do sistema o
 apt update && apt upgrade -y
 ```
 
-Função do comando: * apt update: Consulta os servidores remotos configurados no sistema e atualiza a lista local de metadados de softwares disponíveis.
-apt upgrade -y: Compara as versões dos softwares instalados localmente com a lista de metadados atualizada. Realiza o download e a substituição dos binários desatualizados. A flag -y (yes) suprime os prompts de confirmação, aprovando automaticamente as substituições.
+Função do comando: `apt update`: Consulta os servidores remotos configurados no sistema e atualiza a lista local de metadados de softwares disponíveis.
+
+`apt upgrade -y`: Compara as versões dos softwares instalados localmente com a lista de metadados atualizada. Realiza o download e a substituição dos binários desatualizados.
+
+`-y`: suprime os prompts de confirmação, aprovando automaticamente as substituições.
 
 3. Instalação das Ferramentas de Orquestração
 
