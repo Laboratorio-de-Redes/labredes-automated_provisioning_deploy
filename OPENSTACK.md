@@ -80,6 +80,8 @@ openstack keypair create --public-key ~/.ssh/labredes_key.pub labredes_key
 
 **Função do comando:** O utilitário do OpenStack lê o conteúdo em texto plano do arquivo da chave pública (`.pub`) e realiza uma requisição POST à API de Computação (Nova) da nuvem. O OpenStack armazena essa chave pública em seu banco de dados sob o identificador lógico `labredes_key`. Durante o provisionamento das novas instâncias pelo Terraform, a nuvem injeta o conteúdo desta chave pública dentro do sistema operacional das novas VMs, autorizando conexões oriundas exclusivamente de quem possuir a chave privada (A VM10).
 
+Se a chave que já está no OpenStack for a mesma que acabou de ser gerada (ou seja, se a chave privada em `~/.ssh/labredes_key` for válida para a chave pública que já está lá), pode ignorar o erro. O sistema já está pronto para autorizar o acesso SSH às novas instâncias que o Terraform criar.
+
 Confirmação da criação da chave pública:
 ```
 openstack keypair list
