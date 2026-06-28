@@ -1,4 +1,4 @@
-# ☁️ Instalação e Configuração OpenStack Client (Interface de Linha de Comando da Nuvem)
+# ☁️ Interface de Linha de Comando da Nuvem (OPENSTACK CLIENT)
 
 ![OpenStack](images/openstack.png)
 
