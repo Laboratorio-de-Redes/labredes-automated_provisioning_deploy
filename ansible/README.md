@@ -1,4 +1,4 @@
-# 🤖 Gerenciamento de Configuração (Ansible)
+# 🤖 Gerenciamento de Configuração (ANSIBLE)
 
 ![Ansible](../images/ansible.png)
 
