@@ -61,6 +61,10 @@ Para garantir o isolamento de responsabilidades, o repositório é segmentado em
 ```text
 .
 ├── images/               # Diretório para diagramas e capturas de tela
+│   ├── ansible.png
+│   ├── docker.png
+│   ├── openstack.png
+│   ├── terraform.png
 │   └── topologia.png     # Imagem da arquitetura geral do projeto
 │
 ├── terraform/
