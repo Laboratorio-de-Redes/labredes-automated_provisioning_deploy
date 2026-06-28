@@ -109,11 +109,3 @@ Para apagar a instância execute:
 ```
 terraform destroy -auto-approve
 ```
-
----
-
-## 3. Mapeamento de Recursos (`variables.tf`)
-
-Para evitar repetição de código, as características das instâncias foram mapeadas em um dicionário de variáveis. O Terraform lê este mapeamento e provisiona as máquinas em lote.
-
-![Ansible](../images/ansible.png)
