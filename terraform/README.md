@@ -105,8 +105,8 @@ resource "openstack_compute_instance_v2" "vm_teste" {
 resource "local_file" "ansible_inventory" {
   filename = "${path.module}/hosts.ini"
   content  = <<-EOT
-    [vm-teste]
-    vm-teste ansible_host=${openstack_compute_instance_v2.vm_teste.network[0].fixed_ip_v4} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/labredes_key
+    [teste]
+    vm-teste ansible_host=${openstack_compute_instance_v2.vm_teste.network[0].fixed_ip_v4} ansible_user=root ansible_ssh_private_key_file=~/.ssh/labredes_key
   EOT
 }
 ```
