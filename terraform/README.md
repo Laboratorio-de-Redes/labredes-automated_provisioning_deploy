@@ -98,7 +98,22 @@ resource "openstack_compute_instance_v2" "vm_teste" {
     name = "labredes1"
   }
 }
+
+resource "local_file" "ansible_inventory" {
+  filename = "${path.module}/hosts.ini"
+  content  = <<-EOT
+    [vm-teste]
+    vm-teste ansible_host=${openstack_compute_instance_v2.vm_teste.network[0].fixed_ip_v4} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/labredes_key
+  EOT
+}
 ```
+**Estrutura do Arquivo:** 
+`resource "local_file" "ansible_inventory"`: Este é um recurso nativo do Terraform que não cria nada na nuvem, mas sim no sistema de arquivos da própria VM10.
+
+`filename`: Define o caminho absoluto onde o arquivo hosts.ini será escrito.
+
+`content`: Utiliza a função de interpolação do Terraform (`${...}`) para buscar o IP atribuído pelo OpenStack à `vm_teste` logo após o provisionamento, gravando-o diretamente no formato de inventário do Ansible.
+
 Revisar o que será criado e aplicar:
 ```
 terraform plan
