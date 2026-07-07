@@ -9,7 +9,7 @@ Este repositório contém o código-fonte para o provisionamento e configuraçã
 
 O projeto está encapsulado no diretório `auto_deploy/`, subdividido nas seguintes responsabilidades:
 
-` ` `text
+```
 auto_deploy/
 ├── criar-redes-teste.sh      # Script de topologia L2 (Neutron/OpenStack)
 ├── terraform/                # Provisionamento de instâncias (Compute)
@@ -21,7 +21,7 @@ auto_deploy/
     ├── site.yml              # Playbook mestre (Orquestrador)
     ├── files/                # Arquivos estáticos injetados nas VMs
     └── playbooks/            # Playbooks individuais de cada Nó/VM
-` ` `
+``
 
 ---
 
