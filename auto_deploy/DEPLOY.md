@@ -21,7 +21,7 @@ auto_deploy/
     ├── site.yml              # Playbook mestre (Orquestrador)
     ├── files/                # Arquivos estáticos injetados nas VMs
     └── playbooks/            # Playbooks individuais de cada Nó/VM
-``
+``` 
 
 ---
 
