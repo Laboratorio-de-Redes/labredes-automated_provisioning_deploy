@@ -1,4 +1,4 @@
-cat << 'EOF' > README.md
+
 # 🌐 LabRedes - Automated Provisioning & Deploy (IaC)
 
 Este repositório contém o código-fonte para o provisionamento e configuração automatizada da infraestrutura do **LabRedes**. Utilizando os paradigmas de *Infrastructure as Code* (IaC) e *Configuration Management*, o projeto constrói um ambiente complexo de redes virtualizadas no OpenStack, englobando roteamento inter-VLAN, switches Open vSwitch (OVS), servidores de autenticação centralizada, bancos de dados, motores de análise de tráfego e dashboards.
@@ -112,4 +112,3 @@ O diretório `playbooks/` contém o código de provisionamento detalhado de cada
   * **Ações dos Playbooks:** Configurações muito enxutas. Aplicam o IP fixo via Netplan nas VLANs designadas. Possuem uma tratativa especial para **não injetar rotas default (gateway)** que possam sobrescrever a placa de gerência, evitando asfixia do SSH (corte da conexão do Ansible) durante o roteamento assimétrico.
 
 ---
-EOF
