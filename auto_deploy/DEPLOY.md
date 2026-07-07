@@ -43,6 +43,13 @@ O diretório `terraform/` é responsável por conversar com a API do OpenStack p
 * **`main.tf`**: Define o provedor (Terraform OpenStack Provider). Contém as credenciais ou aponta para as variáveis de ambiente (`clouds.yaml`) necessárias para autenticação no tenant correto.
 * **`instances.tf`**: O coração do provisionamento. Aqui estão mapeadas as 13 máquinas virtuais. Ele define o sistema operacional (Ubuntu 24.04), a quantidade de vCPUs/RAM (Flavors), as chaves SSH de acesso e, o mais importante, **conecta cada VM às portas de rede específicas** criadas pelo script anterior. Por exemplo, garante que o Firewall tenha "pernas" em várias VLANs, enquanto os usuários normais tenham apenas uma.
 
+Iniciar a criação das VMs:
+```
+cd ~/auto_deploy/terraform/
+terraform plan
+terraform apply -auto-approve
+```
+
 ---
 
 ## ⚙️ Fase 3: Configuração e Gerência de Estado (Ansible)
@@ -55,6 +62,11 @@ Uma vez que o Terraform entrega as VMs "cruas", o Ansible assume para transform�
 * **`site.yml`**: O playbook orquestrador. Ele não executa tarefas diretamente, mas faz os `imports` na ordem exata de dependência. Ele dita: *"Configure primeiro os Switches, depois o Firewall, depois o Banco de Dados, e só no final o Dashboard"*.
 * **`files/`**: Um diretório vital. Contém arquivos `.env`, `docker-compose.yml`, scripts SQL e `.ldif` (LDAP). **Por que é necessário?** Para garantir a integridade. Injetar configurações complexas via linha de comando (`sed`/`echo`) corrompe arquivos YAML com erros invisíveis de indentação. O Ansible usa o módulo `copy` para transferir arquivos perfeitos e testados localmente direto para as VMs.
 
+Implementação da Arquitetura de Rede:
+```
+cd ~/auto_deploy/ansible/
+ansible-playbook -i hosts.ini site.yml
+```
 ---
 
 ## 🧠 Arquitetura dos Playbooks: A Função de Cada VM
@@ -100,5 +112,4 @@ O diretório `playbooks/` contém o código de provisionamento detalhado de cada
   * **Ações dos Playbooks:** Configurações muito enxutas. Aplicam o IP fixo via Netplan nas VLANs designadas. Possuem uma tratativa especial para **não injetar rotas default (gateway)** que possam sobrescrever a placa de gerência, evitando asfixia do SSH (corte da conexão do Ansible) durante o roteamento assimétrico.
 
 ---
-*Este repositório garante a reprodutibilidade da infraestrutura. A nuvem pode ser destruída e recriada do zero com o apertar de um botão.*
 EOF
