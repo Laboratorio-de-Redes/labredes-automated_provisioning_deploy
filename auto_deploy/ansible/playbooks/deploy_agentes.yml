@@ -1,0 +1,206 @@
+---
+# =============================================================================
+# DEPLOY DOS AGENTES DISTRIBUÍDOS DE MONITORAMENTO (Aluno 8)
+#
+# Agente HOST  → coleta CPU/RAM/disco/conexões/uptime, envia para VM1
+#                Roda em: VM1, VM2, VM3, VM4, VM6, VM7, VM9, VM10
+#                Imagem: joaoqueirozz/host:v2
+#
+# Agente REDE  → coleta estatísticas de interface/VLAN via psutil,
+#                envia para VM11 (que repassa para VM1 — bloqueio de rede
+#                identificado nos testes do Aluno 8 impede envio direto)
+#                Roda em: SW1, SW2
+#                Imagem: joaoqueirozz/rede:v2
+#
+# IMPORTANTE: os switches (SW1/SW2) NÃO têm Docker por padrão — instalado aqui.
+# =============================================================================
+
+# ── AGENTE HOST — VMs de aplicação ───────────────────────────────────────────
+- name: "Agentes | Deploy do Agente HOST nas VMs de aplicação"
+  hosts: VM1:VM2:VM3:VM4:VM6:VM7:VM9:VM10
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    host_agent_image: "joaoqueirozz/host:v2"
+
+  tasks:
+
+    - name: "Host | Aguardar SSH ficar disponível"
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: "Host | Verificar se Docker está instalado"
+      command: docker --version
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: "Host | Instalar Docker via script oficial (se ausente)"
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+      when: docker_check.rc != 0
+
+    - name: "Host | Habilitar e iniciar serviço Docker"
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: "Host | Parar e remover container antigo (idempotência)"
+      command: docker rm -f host
+      ignore_errors: yes
+      changed_when: false
+
+    - name: "Host | Baixar imagem mais recente do agente"
+      command: "docker pull {{ host_agent_image }}"
+
+    - name: "Host | Subir container do agente HOST"
+      command: >
+        docker run -d
+        --network host
+        --restart unless-stopped
+        --name host
+        {{ host_agent_image }}
+
+    - name: "Host | Verificar se container está rodando"
+      command: docker ps --filter "name=host" --format "{{ '{{' }}.Status{{ '}}' }}"
+      register: host_agent_status
+
+    - name: "Host | Exibir status do agente"
+      debug:
+        msg: "Agente HOST em {{ inventory_hostname }}: {{ host_agent_status.stdout }}"
+
+
+# ── AGENTE REDE — Switches ───────────────────────────────────────────────────
+- name: "Agentes | Deploy do Agente REDE em SW1"
+  hosts: SW1
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    rede_agent_image: "joaoqueirozz/rede:v2"
+    switch_id: "sw1"
+
+  tasks:
+
+    - name: "Rede | Aguardar SSH ficar disponível"
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: "Rede | Verificar se Docker está instalado"
+      command: docker --version
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
+    # Nos switches o Docker NÃO vem instalado por padrão (confirmado pelo
+    # relatório do Aluno 8 — usa docker.io do apt, diferente do get.docker.com
+    # usado nas demais VMs, pois o repositório oficial pode não resolver DNS
+    # a partir da rede interna do switch).
+    - name: "Rede | Instalar Docker via apt (se ausente)"
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+      when: docker_check.rc != 0
+
+    - name: "Rede | Habilitar e iniciar serviço Docker"
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: "Rede | Parar e remover container antigo (idempotência)"
+      command: docker rm -f rede-rawsocket
+      ignore_errors: yes
+      changed_when: false
+
+    - name: "Rede | Baixar imagem mais recente do agente"
+      command: "docker pull {{ rede_agent_image }}"
+
+    - name: "Rede | Subir container do agente REDE (SW1)"
+      command: >
+        docker run -d
+        --network host
+        --privileged
+        --restart unless-stopped
+        --name rede-rawsocket
+        -e SWITCH={{ switch_id }}
+        {{ rede_agent_image }}
+
+    - name: "Rede | Verificar se container está rodando"
+      command: docker ps --filter "name=rede-rawsocket" --format "{{ '{{' }}.Status{{ '}}' }}"
+      register: rede_agent_status
+
+    - name: "Rede | Exibir status do agente"
+      debug:
+        msg: "Agente REDE em SW1: {{ rede_agent_status.stdout }}"
+
+
+- name: "Agentes | Deploy do Agente REDE em SW2"
+  hosts: SW2
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    rede_agent_image: "joaoqueirozz/rede:v2"
+    switch_id: "sw2"
+
+  tasks:
+
+    - name: "Rede | Aguardar SSH ficar disponível"
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: "Rede | Verificar se Docker está instalado"
+      command: docker --version
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: "Rede | Instalar Docker via apt (se ausente)"
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+      when: docker_check.rc != 0
+
+    - name: "Rede | Habilitar e iniciar serviço Docker"
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: "Rede | Parar e remover container antigo (idempotência)"
+      command: docker rm -f rede-rawsocket
+      ignore_errors: yes
+      changed_when: false
+
+    - name: "Rede | Baixar imagem mais recente do agente"
+      command: "docker pull {{ rede_agent_image }}"
+
+    - name: "Rede | Subir container do agente REDE (SW2)"
+      command: >
+        docker run -d
+        --network host
+        --privileged
+        --restart unless-stopped
+        --name rede-rawsocket
+        -e SWITCH={{ switch_id }}
+        {{ rede_agent_image }}
+
+    - name: "Rede | Verificar se container está rodando"
+      command: docker ps --filter "name=rede-rawsocket" --format "{{ '{{' }}.Status{{ '}}' }}"
+      register: rede_agent_status
+
+    - name: "Rede | Exibir status do agente"
+      debug:
+        msg: "Agente REDE em SW2: {{ rede_agent_status.stdout }}"

@@ -1,0 +1,7 @@
+dn: ou=Users,dc=labredes,dc=local
+objectClass: organizationalUnit
+ou: Users
+
+dn: ou=Groups,dc=labredes,dc=local
+objectClass: organizationalUnit
+ou: Groups

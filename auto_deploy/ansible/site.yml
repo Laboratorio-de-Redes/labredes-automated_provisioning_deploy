@@ -1,0 +1,31 @@
+---
+# =============================================================================
+# ORQUESTRADOR DE TESTE — Ordem Lógica Estrita de Dependências
+# =============================================================================
+
+# 1. INFRAESTRUTURA FÍSICA E COMUNICAÇÃO L2
+- import_playbook: playbooks/configurar_sw1.yml
+- import_playbook: playbooks/configurar_sw2.yml
+
+# 2. ROTEAMENTO E INTERNET L3 (GATEWAY)
+- import_playbook: playbooks/configurar_vm11.yml
+
+# 3. AUTENTICAÇÃO E DIRETÓRIO (LDAP)
+- import_playbook: playbooks/configurar_vm9.yml
+
+# 4. SERVIDOR CENTRAL E BANCO DE DADOS
+- import_playbook: playbooks/configurar_vm1.yml
+
+# 5. APLICAÇÕES DE OBSERVABILIDADE E SEGURANÇA
+- import_playbook: playbooks/configurar_vm2.yml    # Dashboard (depende da VM9 e VM1)
+- import_playbook: playbooks/configurar_vm3.yml    # Descoberta
+- import_playbook: playbooks/configurar_vm4.yml    # Captura (depende dos SPANs L2)
+- import_playbook: playbooks/configurar_vm6.yml    # Motor Analítico (depende da VM1)
+- import_playbook: playbooks/configurar_vm7.yml    # Alertas
+
+# 6. MÁQUINAS DE USUÁRIO (TESTE DE HOMOLOGAÇÃO)
+- import_playbook: playbooks/configurar_vms_usuario.yml
+
+# 7. AGENTES DISTRIBUÍDOS (Fase final de injeção)
+- import_playbook: playbooks/deploy_agentes.yml
+- import_playbook: playbooks/virar_roteamento.yml

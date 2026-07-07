@@ -1,0 +1,13 @@
+---
+# =============================================================================
+# ATALHO: configurar_switches.yml
+# Roda apenas SW1 e SW2, sem o resto da infraestrutura.
+# Útil quando só os switches precisam ser recriados/reconfigurados.
+#
+# USO:
+#   ansible-playbook configurar_switches.yml
+#   ansible-playbook configurar_switches.yml --limit SW1
+# =============================================================================
+
+- import_playbook: playbooks/configurar_sw1.yml
+- import_playbook: playbooks/configurar_sw2.yml

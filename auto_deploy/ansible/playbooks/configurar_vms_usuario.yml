@@ -1,0 +1,181 @@
+---
+- name: "VM_DEV — Configuração básica de rede"
+  hosts: VM_DEV
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    mac_ens3: "{{ mac_net0 }}"
+    mac_ens4: "{{ mac_net1 }}"
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Gerar configuração netplan da VM_DEV
+      copy:
+        dest: /etc/netplan/99-cloud-init.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                dhcp4: true
+                mtu: 1450
+
+              ens4:
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                dhcp4: false
+                addresses:
+                  - 10.99.50.10/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar Netplan
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+- name: "VM_USER1 — Configuração básica de rede"
+  hosts: VM_USER1
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    mac_ens3: "fa:16:3e:7d:79:6f"
+    mac_ens4: "fa:16:3e:1a:2f:64"
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Gerar configuração netplan da VM_USER1
+      copy:
+        dest: /etc/netplan/99-cloud-init.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                dhcp4: true
+                mtu: 1450
+
+              ens4:
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                dhcp4: false
+                addresses:
+                  - 10.99.60.10/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar Netplan
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+- name: "VM_USER2 — Configuração básica de rede"
+  hosts: VM_USER2
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    mac_ens3: "fa:16:3e:db:a4:f0"
+    mac_ens4: "fa:16:3e:34:65:66"
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Gerar configuração netplan da VM_USER2
+      copy:
+        dest: /etc/netplan/99-cloud-init.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                dhcp4: true
+                mtu: 1450
+
+              ens4:
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                dhcp4: false
+                addresses:
+                  - 10.99.60.20/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar Netplan
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: Testar conectividade com a internet (via Firewall)
+      command: ping -c 3 8.8.8.8
+      register: ping_result
+      ignore_errors: yes
+
+    - name: Testar conectividade intra-VLAN60 com VM_USER1
+      command: ping -c 3 10.99.60.10
+      register: ping_uservlan
+      ignore_errors: yes

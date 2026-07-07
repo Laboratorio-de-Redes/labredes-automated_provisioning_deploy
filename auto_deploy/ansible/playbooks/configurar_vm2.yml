@@ -1,0 +1,144 @@
+---
+- name: Configurar VM2 - Dashboard WEB
+  hosts: VM2
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    vm2_dir: /root/vm2-dashboard
+    vm2_repo: "https://github.com/phgmiura/plataforma-redes-vm2.git"
+    mac_ens3: "{{ mac_net0 }}"   # labredes1
+    mac_ens4: "{{ mac_net1 }}"   # VLAN30_DASH
+    vm9_ldap_ip: "{{ hostvars['VM9']['ansible_host'] }}"
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Gerar configuração netplan da VM2
+      copy:
+        dest: /etc/netplan/99-cloud-init.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                dhcp4: true
+                mtu: 1450
+
+              ens4:
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                dhcp4: false
+                addresses:
+                  - 10.99.30.10/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar Netplan
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: Atualizar cache de pacotes
+      apt:
+        update_cache: yes
+
+    - name: Instalar git
+      apt:
+        name: git
+        state: present
+
+    - name: Instalar Docker
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Habilitar e iniciar serviço Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Remover diretório antigo do projeto
+      file:
+        path: "{{ vm2_dir }}"
+        state: directory
+
+    - name: Clonar repositório da VM2
+      git:
+        repo: "{{ vm2_repo }}"
+        dest: "{{ vm2_dir }}"
+        version: main
+        force: yes
+
+    - name: Criar docker-compose.yml
+      copy:
+        dest: "{{ vm2_dir }}/docker-compose.yml"
+        content: |
+          version: '3.8'
+          services:
+            backend:
+              build: ./backend
+              container_name: redes_backend
+              ports:
+                - "5000:5000"
+              environment:
+                - LDAP_SERVER=ldap://10.99.10.37:389
+                - LDAP_BASE_DN=dc=labredes,dc=local
+              restart: unless-stopped
+            frontend:
+              build: ./frontend
+              container_name: redes_frontend
+              ports:
+                - "5173:5173"
+              depends_on:
+                - backend
+              restart: unless-stopped
+            grafana:
+              image: grafana/grafana-oss:latest
+              container_name: redes_grafana
+              ports:
+                - "3000:3000"
+              environment:
+                - GF_SECURITY_ADMIN_PASSWORD=admin123
+                - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
+                - GF_SECURITY_ALLOW_EMBEDDING=true
+                - GF_AUTH_ANONYMOUS_ENABLED=true
+                - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+              volumes:
+                - ./grafana/provisioning:/etc/grafana/provisioning
+              restart: unless-stopped
+
+    - name: Subir containers da VM2
+      shell: "docker compose up -d --build"
+      args:
+        chdir: "{{ vm2_dir }}"
+
+    - name: Subir containers da VM2
+      command: docker compose up -d --build
+      args:
+        chdir: "{{ vm2_dir }}"
+
+    - name: Verificar se containers estão rodando
+      command: docker ps --filter "name=redes_" --format "{{ '{{' }}.Names{{ '}}' }} - {{ '{{' }}.Status{{ '}}' }}"
+      register: container_status

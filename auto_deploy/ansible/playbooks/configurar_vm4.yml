@@ -1,0 +1,175 @@
+---
+- name: Configurar VM4 - Captura de Tráfego
+  hosts: VM4
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    vm4_dir: /root/vm4-capture
+    vlans_captura: [10, 20, 30, 50, 60]
+    mac_ens3: "{{ mac_net0 }}"   # labredes1 (gerência/SSH)
+    mac_ens4: "{{ mac_net1 }}"   # recepção do espelhamento SW1
+    mac_ens5: "{{ mac_net2 }}"   # recepção do espelhamento SW2
+    mac_ens6: "{{ mac_net3 }}"   # VLAN40_CAPT.TRAFE. — 10.0.40.10/24
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Atualizar cache de pacotes
+      apt:
+        update_cache: yes
+
+    - name: Instalar pacotes necessários
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - bridge-utils
+        state: present
+
+    - name: Instalar Docker via script oficial
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Habilitar e iniciar serviço Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Criar diretório do projeto
+      file:
+        path: "{{ vm4_dir }}"
+        state: directory
+
+    - name: Copiar docker-compose.yml
+      copy:
+        src: ../files/vm4/docker-compose.yml
+        dest: "{{ vm4_dir }}/docker-compose.yml"
+
+    - name: Gerar configuração netplan da VM4
+      copy:
+        dest: /etc/netplan/99-vm4-interfaces.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            ethernets:
+              ens3:
+                dhcp4: true
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                  use-dns: true
+                mtu: 1450
+
+              ens4:
+                dhcp4: false
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                mtu: 1450
+
+              ens5:
+                dhcp4: false
+                match:
+                  macaddress: "{{ mac_ens5 }}"
+                mtu: 1450
+
+              ens6:
+                dhcp4: false
+                match:
+                  macaddress: "{{ mac_ens6 }}"
+                addresses:
+                  - 10.99.40.10/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar configuração de rede
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: Colocar ens4 em modo promíscuo
+      command: ip link set ens4 promisc on
+      ignore_errors: yes
+
+    - name: Colocar ens5 em modo promíscuo
+      command: ip link set ens5 promisc on
+      ignore_errors: yes
+
+    - name: "Captura VLAN | Remover subinterfaces antigas de ens4 (reset)"
+      command: "ip link delete ens4.{{ item }}"
+      loop: "{{ vlans_captura }}"
+      ignore_errors: yes
+      changed_when: false
+
+    - name: "Captura VLAN | Remover subinterfaces antigas de ens5 (reset)"
+      command: "ip link delete ens5.{{ item }}"
+      loop: "{{ vlans_captura }}"
+      ignore_errors: yes
+      changed_when: false
+
+    - name: "Captura VLAN | Ativar modo promíscuo em ens4 e ens5"
+      command: "ip link set {{ item }} promisc on"
+      loop:
+        - ens4
+        - ens5
+
+    - name: "Captura VLAN | Garantir ens4 e ens5 up"
+      command: "ip link set {{ item }} up"
+      loop:
+        - ens4
+        - ens5
+
+    - name: "Captura VLAN | Criar subinterfaces VLAN em ens4 (trafego SW1)"
+      command: "ip link add link ens4 name ens4.{{ item }} type vlan id {{ item }}"
+      loop: "{{ vlans_captura }}"
+
+    - name: "Captura VLAN | Ativar subinterfaces de ens4"
+      command: "ip link set ens4.{{ item }} up"
+      loop: "{{ vlans_captura }}"
+
+    - name: "Captura VLAN | Promiscuo nas subinterfaces de ens4"
+      command: "ip link set ens4.{{ item }} promisc on"
+      loop: "{{ vlans_captura }}"
+
+    - name: "Captura VLAN | Criar subinterfaces VLAN em ens5 (trafego SW2)"
+      command: "ip link add link ens5 name ens5.{{ item }} type vlan id {{ item }}"
+      loop: "{{ vlans_captura }}"
+
+    - name: "Captura VLAN | Ativar subinterfaces de ens5"
+      command: "ip link set ens5.{{ item }} up"
+      loop: "{{ vlans_captura }}"
+
+    - name: "Captura VLAN | Promiscuo nas subinterfaces de ens5"
+      command: "ip link set ens5.{{ item }} promisc on"
+      loop: "{{ vlans_captura }}"
+
+    - name: Subir container flow-generator
+      command: docker compose up -d
+      args:
+        chdir: "{{ vm4_dir }}"
+
+    - name: Verificar se container está rodando
+      command: docker ps --filter "name=flow-generator" --format "{{ '{{' }}.Status{{ '}}' }}"
+      register: container_status
+
+    - name: Exibir status do container
+      debug:
+        msg: "VM4 container status: {{ container_status.stdout }}"

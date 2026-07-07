@@ -1,0 +1,138 @@
+---
+- name: Configurar VM1 - Servidor Central
+  hosts: VM1
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    vm1_dir: /root/vm1-central
+    mac_ens3: "{{ mac_net0 }}"   # labredes1 (gerência/SSH)
+    mac_ens4: "{{ mac_net1 }}"   # VLAN20_SERVER
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Gerar configuração netplan da VM1
+      copy:
+        dest: /etc/netplan/99-cloud-init.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                dhcp4: true
+                mtu: 1450
+
+              ens4:
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                dhcp4: false
+                addresses:
+                  - 10.99.20.10/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar Netplan
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: Atualizar cache de pacotes
+      apt:
+        update_cache: yes
+
+    - name: Instalar Docker via script oficial
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Habilitar e iniciar serviço Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Criar diretório do projeto
+      file:
+        path: "{{ vm1_dir }}"
+        state: directory
+
+    - name: Criar diretório init-db
+      file:
+        path: "{{ vm1_dir }}/init-db"
+        state: directory
+
+    - name: Criar diretório nginx
+      file:
+        path: "{{ vm1_dir }}/nginx"
+        state: directory
+
+    - name: Copiar docker-compose.yml
+      copy:
+        src: ../files/vm1/docker-compose.yml
+        dest: "{{ vm1_dir }}/docker-compose.yml"
+
+    - name: Copiar .env
+      copy:
+        src: ../files/vm1/.env
+        dest: "{{ vm1_dir }}/.env"
+        mode: '0600'
+
+    - name: Copiar init.sql
+      copy:
+        src: ../files/vm1/init.sql
+        dest: "{{ vm1_dir }}/init-db/init.sql"
+
+    - name: Copiar nginx default.conf
+      copy:
+        src: ../files/vm1/default.conf
+        dest: "{{ vm1_dir }}/nginx/default.conf"
+
+    - name: Subir containers da VM1
+      command: docker compose up -d
+      args:
+        chdir: "{{ vm1_dir }}"
+
+    - name: Aguardar Postgres ficar saudável
+      command: docker inspect -f {{'{{'}}.State.Health.Status{{'}}'}} vm1_postgres
+      register: postgres_status
+      until: "'healthy' in postgres_status.stdout"
+      retries: 20
+      delay: 10
+
+    - name: Verificar containers rodando
+      command: docker ps --filter "name=vm1_" --format "{{ '{{' }}.Names{{ '}}' }} - {{ '{{' }}.Status{{ '}}' }}"
+      register: container_status
+
+    - name: Exibir status dos containers
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+
+    - name: Testar API de saúde
+      uri:
+        url: "http://localhost/api/v1/health"
+        status_code: 200
+      register: health_check
+      ignore_errors: yes
+      delay: 5
+      retries: 5

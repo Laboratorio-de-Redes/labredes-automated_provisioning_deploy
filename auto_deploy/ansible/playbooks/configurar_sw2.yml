@@ -1,0 +1,154 @@
+---
+- name: "SW2 — Configuração Completa do Switch Virtual"
+  hosts: SW2
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+    # Gerência — agora na ens3
+    mgmt_interface: ens3
+    mgmt_ip: "192.168.10.105"
+    mgmt_prefix: "24"
+    mgmt_gateway: "192.168.10.1"
+    mgmt_mac: "{{ mac_net0 }}"
+
+    vlans_trunk: "10,20,30,40,50,60"
+
+    # Portas trunk
+    trunk_ports:
+      - name: ens4     # FIREWALL_2
+      - name: ens5     # TRUNK_INTER_SW
+      - name: ens6     # CAP.TRAF2
+
+    # Portas access
+    access_ports:
+      - { name: ens15, vlan: 10 }  # Porta fantasma p/ VM10 (não criada pelo TF)
+      - { name: ens7,  vlan: 20 }  # VM1 / VM6 (SERVER)
+      - { name: ens8,  vlan: 30 }  # VM2 (DASH)
+      - { name: ens9,  vlan: 40 }  # VM7 (ALERT)
+      - { name: ens10, vlan: 60 }  # VM_USER2
+
+    # Espelhamento: MAC da VM4 ens5
+    span_dst_mac: "{{ hostvars['VM4']['mac_net2'] }}"
+    span_out_port: "ens6"
+
+  tasks:
+    - name: "1/7 | Aguardar SSH ficar disponível"
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: "1/7 | Coletar facts do sistema"
+      setup:
+
+    - name: "2/7 | Gravar Netplan persistente para ens3 (labredes1)"
+      copy:
+        dest: /etc/netplan/99-cloud-init.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_net0 }}"
+                dhcp4: true
+                mtu: 1450
+
+    - name: "2/7 | Aplicar Netplan"
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: "3/7 | Atualizar cache de pacotes"
+      apt:
+        update_cache: yes
+
+    - name: "3/7 | Instalar Open vSwitch"
+      apt:
+        name: openvswitch-switch
+        state: present
+
+    - name: "3/7 | Habilitar e iniciar serviço OVS"
+      service:
+        name: openvswitch-switch
+        state: started
+        enabled: yes
+
+    - name: "4/7 | Criar bridge br-int"
+      command: ovs-vsctl --may-exist add-br br-int
+
+    - name: "5/7 | Ativar interfaces trunk no kernel"
+      command: "ip link set {{ item.name }} up"
+      loop: "{{ trunk_ports }}"
+
+    - name: "5/7 | Adicionar portas trunk à bridge"
+      command: "ovs-vsctl --may-exist add-port br-int {{ item.name }}"
+      loop: "{{ trunk_ports }}"
+
+    - name: "5/7 | Definir VLANs permitidas nas trunks"
+      command: "ovs-vsctl set port {{ item.name }} trunks={{ vlans_trunk }}"
+      loop: "{{ trunk_ports }}"
+
+    - name: "6/7 | Ativar interfaces access no kernel"
+      command: "ip link set {{ item.name }} up"
+      loop: "{{ access_ports }}"
+      ignore_errors: yes
+
+    - name: "6/7 | Adicionar portas access à bridge"
+      command: "ovs-vsctl --may-exist add-port br-int {{ item.name }}"
+      loop: "{{ access_ports }}"
+      ignore_errors: yes
+
+    - name: "6/7 | Limpar trunks residuais das portas access"
+      command: "ovs-vsctl clear Port {{ item.name }} trunks"
+      loop: "{{ access_ports }}"
+      ignore_errors: yes
+
+    - name: "6/7 | Aplicar vlan_mode=access"
+      command: "ovs-vsctl set Port {{ item.name }} vlan_mode=access"
+      loop: "{{ access_ports }}"
+      ignore_errors: yes
+
+    - name: "6/7 | Aplicar tag de VLAN"
+      command: "ovs-vsctl set Port {{ item.name }} tag={{ item.vlan }}"
+      loop: "{{ access_ports }}"
+      ignore_errors: yes
+
+    - name: "7/7 | Limpar mirrors antigos na bridge"
+      command: ovs-vsctl clear Bridge br-int mirrors
+
+    - name: "7/7 | Limpar fluxos OpenFlow"
+      command: ovs-ofctl del-flows br-int "table=0"
+
+    - name: "7/7 | Injetar regra SPAN via OpenFlow"
+      command: >-
+        ovs-ofctl add-flow br-int
+        "priority=100,actions=normal,clone(mod_dl_dst:{{ span_dst_mac }},output:{{ span_out_port }})"
+
+    - name: "7/7 | Configurar porta de espelhamento como trunk nativo"
+      command: "ovs-vsctl set Port {{ span_out_port }} vlan_mode=native-untagged"
+
+    - name: "7/7 | Definir VLANs na porta de espelhamento"
+      command: "ovs-vsctl set Port {{ span_out_port }} trunks={{ vlans_trunk }}"
+
+    - name: "✔ | ovs-vsctl show"
+      command: ovs-vsctl show
+      register: ovs_show
+
+    - name: "✔ | ovs-ofctl dump-flows br-int"
+      command: ovs-ofctl dump-flows br-int
+      register: ovs_flows
+
+    - name: "✔ | Resultado ovs-vsctl show"
+      debug:
+        msg: "{{ ovs_show.stdout_lines }}"

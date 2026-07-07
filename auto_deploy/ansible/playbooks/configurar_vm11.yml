@@ -1,0 +1,192 @@
+---
+- name: Configurar VM11 - Firewall e Roteador Inter-VLAN
+  hosts: VM11
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    vm11_dir: /root/vm11
+    mac_ens3: "{{ mac_net0 }}"   # labredes1
+    mac_ens4: "{{ mac_net1 }}"   # FIREWALL_1 / TRUNK_INTER_SW
+    mac_ens5: "{{ mac_net2 }}"   # FIREWALL_2
+    vlan_gateways:
+      - { id: 10, ip: "10.99.10.1/24" }
+      - { id: 20, ip: "10.99.20.1/24" }
+      - { id: 30, ip: "10.99.30.1/24" }
+      - { id: 40, ip: "10.99.40.1/24" }
+      - { id: 50, ip: "10.99.50.1/24" }
+      - { id: 60, ip: "10.99.62.1/24" }
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Atualizar cache de pacotes
+      apt:
+        update_cache: yes
+
+    - name: Instalar pacotes necessários
+      apt:
+        name:
+          - nftables
+          - rsyslog
+        state: present
+
+    - name: Instalar Docker via script oficial
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Habilitar e iniciar serviço Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Criar diretório do projeto
+      file:
+        path: "{{ vm11_dir }}"
+        state: directory
+
+    - name: Gerar configuração netplan da VM11
+      copy:
+        dest: /etc/netplan/99-vlans.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                dhcp4: true
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+              ens4:
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                dhcp4: false
+                addresses:
+                  - 10.0.250.126/24
+                mtu: 1450
+
+              ens5:
+                match:
+                  macaddress: "{{ mac_ens5 }}"
+                dhcp4: false
+                addresses:
+                  - 10.0.240.13/24
+                mtu: 1450
+
+            vlans:
+          {% for gw in vlan_gateways %}
+              ens4.{{ gw.id }}:
+                id: {{ gw.id }}
+                link: ens4
+                addresses: [{{ gw.ip }}]
+          {% endfor %}
+
+    - name: Aplicar configuração de rede
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: Habilitar IP forwarding (runtime)
+      command: sysctl -w net.ipv4.ip_forward=1
+
+    - name: Tornar IP forwarding permanente
+      lineinfile:
+        path: /etc/sysctl.conf
+        line: 'net.ipv4.ip_forward=1'
+        state: present
+
+    - name: Copiar arquivo de regras nftables
+      copy:
+        src: ../files/vm11/nftables.conf
+        dest: /etc/nftables.conf
+        mode: '0640'
+
+    - name: Aplicar regras nftables
+      command: nft -f /etc/nftables.conf
+      ignore_errors: yes
+
+    - name: Habilitar serviço nftables
+      service:
+        name: nftables
+        enabled: yes
+
+    - name: Configurar logrotate para rsyslog
+      copy:
+        src: ../files/vm11/logrotate-rsyslog
+        dest: /etc/logrotate.d/rsyslog
+
+    - name: Limitar tamanho do journald
+      blockinfile:
+        path: /etc/systemd/journald.conf
+        block: |
+          [Journal]
+          SystemMaxUse=200M
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - journald limit"
+
+    - name: Reiniciar journald
+      service:
+        name: systemd-journald
+        state: restarted
+
+    - name: Reiniciar rsyslog
+      service:
+        name: rsyslog
+        state: restarted
+
+    - name: Criar docker-compose.yml da VM11
+      copy:
+        dest: "{{ vm11_dir }}/docker-compose.yml"
+        content: |
+          version: '3.8'
+          services:
+            firewall:
+              image: joabfsl/firewall-vm11-tralho:v1
+              container_name: vm11-firewall
+              network_mode: host
+              privileged: true
+              cap_add:
+                - NET_ADMIN
+                - NET_RAW
+              restart: unless-stopped
+              volumes:
+                - /etc/nftables.conf:/etc/nftables.conf
+              environment:
+                - LDAP_SERVER=ldap://10.0.10.10:389
+                - LDAP_BASE_DN=dc=labredes,dc=local
+                - LDAP_OU_USERS=ou=Users
+                - LDAP_OU_GROUPS=ou=Groups
+                - LDAP_ADMIN_DN=cn=admin,dc=labredes,dc=local
+                - LDAP_ADMIN_PASSWORD=admin123
+                - SECRET_KEY=labredes-chave-producao
+                - WEB_PORT=5000
+
+    - name: Subir container vm11-firewall
+      command: docker compose up -d
+      args:
+        chdir: "{{ vm11_dir }}"
+
+    - name: Verificar se container está rodando
+      command: docker ps --filter "name=vm11-firewall" --format "{{ '{{' }}.Status{{ '}}' }}"
+      register: container_status

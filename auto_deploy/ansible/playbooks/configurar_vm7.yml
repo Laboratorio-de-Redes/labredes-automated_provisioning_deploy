@@ -1,0 +1,101 @@
+---
+- name: Configurar VM7 - Sistema de Alertas
+  hosts: VM7
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    vm7_dir: /root/vm7-alertas
+    mac_ens3: "{{ mac_net0 }}"   # labredes1
+    mac_ens4: "{{ mac_net1 }}"   # VLAN40_SIST.ALERT.
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Atualizar cache de pacotes
+      apt:
+        update_cache: yes
+
+    - name: Instalar Docker via script oficial
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Habilitar e iniciar serviço Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Criar diretório do projeto
+      file:
+        path: "{{ vm7_dir }}"
+        state: directory
+
+    - name: Criar docker-compose.yml da VM7
+      copy:
+        dest: "{{ vm7_dir }}/docker-compose.yml"
+        content: |
+          version: '3.8'
+
+          services:
+            sistema-alertas:
+              image: iphrl/sistalertas:v1.0
+              container_name: motor-alertas
+              restart: always
+              ports:
+                - "80:5000"
+
+    - name: Gerar configuração netplan da VM7
+      copy:
+        dest: /etc/netplan/99-cloud-init.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                dhcp4: true
+                mtu: 1450
+
+              ens4:
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                dhcp4: false
+                addresses:
+                  - 10.99.43.30/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar Netplan
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: Subir container sistema-alertas
+      command: docker compose up -d
+      args:
+        chdir: "{{ vm7_dir }}"
+
+    - name: Verificar se container está rodando
+      command: docker ps --filter "name=motor-alertas" --format "{{ '{{' }}.Status{{ '}}' }}"
+      register: container_status

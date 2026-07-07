@@ -1,0 +1,198 @@
+---
+- name: Configurar VM9 - Servidor LDAP
+  hosts: VM9
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    vm9_dir: /root/vm9-auth
+    ldap_admin_pw: admin123
+    ldap_base_dn: "dc=labredes,dc=local"
+    mac_ens3: "{{ mac_net0 }}"   # labredes1
+    mac_ens4: "{{ mac_net1 }}"   # VLAN10_AUTENTICACAO
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Gerar configuração netplan da VM9
+      copy:
+        dest: /etc/netplan/99-cloud-init.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            renderer: networkd
+            ethernets:
+              ens3:
+                match:
+                  macaddress: "{{ mac_ens3 }}"
+                dhcp4: true
+                mtu: 1450
+
+              ens4:
+                match:
+                  macaddress: "{{ mac_ens4 }}"
+                dhcp4: false
+                addresses:
+                  - 10.99.10.10/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar Netplan
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: Atualizar cache de pacotes
+      apt:
+        update_cache: yes
+
+    - name: Instalar Docker via script oficial
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Habilitar e iniciar serviço Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Criar diretório do projeto
+      file:
+        path: "{{ vm9_dir }}"
+        state: directory
+
+    - name: Criar docker-compose.yml da VM9
+      copy:
+        dest: "{{ vm9_dir }}/docker-compose.yml"
+        content: |
+          services:
+            ldap:
+              image: osixia/openldap:1.5.0
+              container_name: openldap
+              environment:
+                LDAP_ORGANISATION: "LabRedes"
+                LDAP_DOMAIN: "labredes.local"
+                LDAP_ADMIN_PASSWORD: "admin123"
+              ports:
+                - "389:389"
+                - "636:636"
+              restart: unless-stopped
+
+            phpldapadmin:
+              image: osixia/phpldapadmin:0.9.0
+              container_name: phpldapadmin
+              environment:
+                PHPLDAPADMIN_LDAP_HOSTS: ldap
+              ports:
+                - "8080:80"
+              depends_on:
+                - ldap
+              restart: unless-stopped
+
+    - name: Copiar arquivos LDIF para a VM9
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ vm9_dir }}/{{ item.dest }}"
+      loop:
+        - { src: '../files/vm9/estrutura.ldif', dest: 'estrutura.ldif' }
+        - { src: '../files/vm9/usuarios.ldif',  dest: 'usuarios.ldif'  }
+        - { src: '../files/vm9/grupos.ldif',    dest: 'grupos.ldif'    }
+
+    - name: Subir containers LDAP
+      command: docker compose up -d
+      args:
+        chdir: "{{ vm9_dir }}"
+
+    - name: Aguardar OpenLDAP ficar pronto (checar porta 389)
+      wait_for:
+        host: 127.0.0.1
+        port: 389
+        delay: 5
+        timeout: 180
+
+    - name: Verificar se estrutura LDAP já existe
+      command: >
+        docker exec openldap ldapsearch -x
+        -D "cn=admin,{{ ldap_base_dn }}"
+        -w {{ ldap_admin_pw }}
+        -b "ou=Users,{{ ldap_base_dn }}"
+      register: ldap_estrutura_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Copiar estrutura.ldif para o container
+      command: docker cp {{ vm9_dir }}/estrutura.ldif openldap:/tmp/estrutura.ldif
+      when: ldap_estrutura_check.rc != 0
+
+    - name: Importar estrutura LDAP (OUs)
+      command: >
+        docker exec openldap ldapadd -x
+        -D "cn=admin,{{ ldap_base_dn }}"
+        -w {{ ldap_admin_pw }}
+        -f /tmp/estrutura.ldif
+      when: ldap_estrutura_check.rc != 0
+      ignore_errors: yes
+
+    - name: Verificar se usuários LDAP já existem
+      command: >
+        docker exec openldap ldapsearch -x
+        -D "cn=admin,{{ ldap_base_dn }}"
+        -w {{ ldap_admin_pw }}
+        -b "cn=admin,ou=Users,{{ ldap_base_dn }}"
+      register: ldap_usuarios_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Copiar usuarios.ldif para o container
+      command: docker cp {{ vm9_dir }}/usuarios.ldif openldap:/tmp/usuarios.ldif
+      when: ldap_usuarios_check.rc != 0
+
+    - name: Importar usuários LDAP
+      command: >
+        docker exec openldap ldapadd -x
+        -D "cn=admin,{{ ldap_base_dn }}"
+        -w {{ ldap_admin_pw }}
+        -f /tmp/usuarios.ldif
+      when: ldap_usuarios_check.rc != 0
+      ignore_errors: yes
+
+    - name: Verificar se grupos LDAP já existem
+      command: >
+        docker exec openldap ldapsearch -x
+        -D "cn=admin,{{ ldap_base_dn }}"
+        -w {{ ldap_admin_pw }}
+        -b "cn=Administradores,ou=Groups,{{ ldap_base_dn }}"
+      register: ldap_grupos_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Copiar grupos.ldif para o container
+      command: docker cp {{ vm9_dir }}/grupos.ldif openldap:/tmp/grupos.ldif
+      when: ldap_grupos_check.rc != 0
+
+    - name: Importar grupos LDAP
+      command: >
+        docker exec openldap ldapadd -x
+        -D "cn=admin,{{ ldap_base_dn }}"
+        -w {{ ldap_admin_pw }}
+        -f /tmp/grupos.ldif
+      when: ldap_grupos_check.rc != 0
+      ignore_errors: yes

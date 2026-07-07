@@ -1,0 +1,10 @@
+dn: cn=Administradores,ou=Groups,dc=labredes,dc=local
+objectClass: groupOfNames
+cn: Administradores
+member: cn=admin,ou=Users,dc=labredes,dc=local
+
+dn: cn=Usuarios,ou=Groups,dc=labredes,dc=local
+objectClass: groupOfNames
+cn: Usuarios
+member: cn=aluno1,ou=Users,dc=labredes,dc=local
+member: cn=aluno2,ou=Users,dc=labredes,dc=local

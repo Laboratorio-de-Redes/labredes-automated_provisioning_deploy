@@ -1,0 +1,42 @@
+---
+- name: "Fase Final: Virar Roteamento de Produção (Acesso via Firewall)"
+  hosts: VM1, VM2, VM6, VM9, VM_DEV, VM_USER1, VM_USER2
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Descobrir interface de Gerência (192.168.10.x)
+      shell: "ip -4 addr show | grep '192.168.10.' | awk '{print $NF}'"
+      register: mgmt_iface
+
+    - name: Descobrir interface da VLAN Interna (10.99.x.x)
+      shell: "ip -4 addr show | grep '10.99.' | awk '{print $NF}' | head -n 1"
+      register: vlan_iface
+
+    - name: Descobrir IP da VLAN
+      shell: "ip -4 addr show dev {{ vlan_iface.stdout }} | grep -w inet | awk '{print $2}' | cut -d/ -f1"
+      register: vlan_ip
+
+    - name: Criar override do Netplan para forçar rota pelo Firewall
+      copy:
+        dest: /etc/netplan/99-rota-producao.yaml
+        content: |
+          network:
+            version: 2
+            ethernets:
+              {{ mgmt_iface.stdout }}:
+                dhcp4-overrides:
+                  use-routes: false
+              {{ vlan_iface.stdout }}:
+                routes:
+                  - to: default
+                    via: {{ vlan_ip.stdout.split('.')[0:3] | join('.') }}.1
+
+    - name: Aplicar roteamento final
+      shell: "sleep 2 && netplan apply"
+      async: 45
+      poll: 0
+
+    - name: Aguardar estabilização da rede
+      wait_for_connection:
+        delay: 5
+        timeout: 60

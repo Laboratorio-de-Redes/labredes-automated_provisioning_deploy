@@ -1,0 +1,20 @@
+dn: cn=admin,ou=Users,dc=labredes,dc=local
+objectClass: inetOrgPerson
+cn: admin
+sn: admin
+uid: admin
+userPassword: admin123
+
+dn: cn=aluno1,ou=Users,dc=labredes,dc=local
+objectClass: inetOrgPerson
+cn: aluno1
+sn: aluno1
+uid: aluno1
+userPassword: aluno123
+
+dn: cn=aluno2,ou=Users,dc=labredes,dc=local
+objectClass: inetOrgPerson
+cn: aluno2
+sn: aluno2
+uid: aluno2
+userPassword: aluno123

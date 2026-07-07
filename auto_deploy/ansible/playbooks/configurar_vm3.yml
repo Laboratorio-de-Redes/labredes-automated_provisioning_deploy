@@ -1,0 +1,99 @@
+---
+- name: Configurar VM3 - Descoberta de Hosts
+  hosts: VM3
+  become: yes
+  gather_facts: no
+
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    vm3_dir: /root/vm3-discovery
+    vm3_mac_ens4: "{{ mac_net1 }}"
+
+  tasks:
+    - name: Aguardar SSH ficar disponível
+      wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Coletar informações do sistema
+      setup:
+
+    - name: Atualizar cache de pacotes
+      apt:
+        update_cache: yes
+
+    - name: Instalar Docker via script oficial
+      shell: curl -fsSL https://get.docker.com | sh
+      args:
+        creates: /usr/bin/docker
+
+    - name: Habilitar e iniciar serviço Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Criar diretório do projeto
+      file:
+        path: "{{ vm3_dir }}"
+        state: directory
+
+    - name: Criar docker-compose.yml da VM3
+      copy:
+        dest: "{{ vm3_dir }}/docker-compose.yml"
+        content: |
+          services:
+            vm3-discovery:
+              image: danielpmarchesi/vm3labredes:v1
+              container_name: vm3-discovery
+              network_mode: host
+              privileged: true
+              restart: unless-stopped
+              environment:
+                - PYTHONUNBUFFERED=1
+
+    - name: Configurar IP fixo da ens4 (VLAN40) via netplan
+      copy:
+        dest: /etc/netplan/99-vlan40.yaml
+        mode: '0600'
+        content: |
+          network:
+            version: 2
+            ethernets:
+              ens3:
+                dhcp4: true
+                mtu: 1450
+              ens4:
+                match:
+                  macaddress: "{{ vm3_mac_ens4 }}"
+                addresses:
+                  - 10.99.40.40/24
+                nameservers:
+                  addresses:
+                    - 8.8.8.8
+                    - 1.1.1.1
+                mtu: 1450
+
+    - name: Aplicar configuração de rede
+      shell: "sleep 2 && reboot"
+      async: 45
+      poll: 0
+
+    - name: Aguardar rede voltar
+      wait_for_connection:
+        delay: 10
+        timeout: 180
+      ignore_errors: yes
+
+    - name: Subir container vm3-discovery
+      command: docker compose up -d
+      args:
+        chdir: "{{ vm3_dir }}"
+
+    - name: Verificar se container está rodando
+      command: docker ps --filter "name=vm3-discovery" --format "{{ '{{' }}.Status{{ '}}' }}"
+      register: container_status
+
+    - name: Exibir status do container
+      debug:
+        msg: "VM3 container status: {{ container_status.stdout }}"
