@@ -1,5 +1,9 @@
 # 👨‍💻 Plataforma Distribuída de Monitoramento e Segurança de Redes
 
+*_Autor: Junior Oliveira_* [![GitHub](https://img.shields.io/badge/GitHub-%2312100E.svg?style=flat&logo=github&logoColor=white)](https://github.com/Junior0liveir4)
+
+---
+
 **🚀 Módulo de Orquestração e Deploy Automatizado (VM10)**
 
 ![Ansible](https://img.shields.io/badge/Ansible-Automacao-red)
